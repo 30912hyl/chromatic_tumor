@@ -6,7 +6,6 @@
 /**/
 #include "qpn_port.h"
 #include "bsp.h"
-#include "lab2a.h"
 #include "xintc.h"
 #include "xil_exception.h"
 #include "xtmrctr_l.h"
@@ -153,7 +152,7 @@ void QF_onStartup(void) {                 /* entered with interrupts locked */
 	fillRect(40, 100, pastX, 120);
 	setFont(SmallFont);
 	ct = 0;
-
+	/*
 	// grand loop from lab 2b
 	while(1){
 		if(ct==1000){
@@ -233,7 +232,7 @@ void QF_onStartup(void) {                 /* entered with interrupts locked */
 		final = -1;
 		DELAY(100);
 	}
-
+	*/
 	// Variables for reading Microblaze registers to debug your interrupts.
 //	{
 //		u32 axi_ISR =  Xil_In32(intcPress.BaseAddress + XIN_ISR_OFFSET);
