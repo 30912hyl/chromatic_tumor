@@ -22,20 +22,25 @@
 
 #define GPIO_CHANNEL1 1
 #define DELAY(X) for(volatile int z=0;z<X;z++);
-XGpio Gpio;
-XGpio EncoderGpio;
-XIntc intc;
-XTmrCtr tmrctr;
+
+static XGpio Gpio;
+static XGpio EncoderGpio;
+static XIntc intc;
+static XTmrCtr tmrctr;
 
 static XGpio BtnGPIO;
 static XGpio dc;
 static XSpi spi;
 static int BufferHigh[240][320];
 static int BufferLow[240][320];
+
+/******** For debouncing rotary encoder*/
 volatile int dir = -1;
 volatile int final = -1;
 volatile int btnpress = 0;
 volatile int finalState = 3;
+/***********************/
+
 volatile int mode = -1;
 volatile int ct = 0;
 volatile int sleep = 0;
@@ -54,53 +59,7 @@ void timer_handler(){
 	XTmrCtr_WriteReg(tmrctr.BaseAddress, 0 , XTC_TCSR_OFFSET, ControlStatusReg | XTC_CSR_INT_OCCURED_MASK);
 }*/
 
-void button_handler(void *CallbackRef){
-	XGpio *GpioPtr = (XGpio *)CallbackRef;
-	unsigned int btn = XGpio_DiscreteRead(&BtnGPIO, 1);//1 up 2 left 4 right 8 down
-	ct = 0;
-	if(btn==1){
-		mode = 1;
-	}
-	else if(btn==2){
-		mode = 2;
-	}
-	else if(btn==4){
-		mode = 4;
-	}
-	else if(btn==8){
-		mode = 8;
-	}
-	XGpio_InterruptClear(GpioPtr, 1);
-}
 
-void encoder_handler(void *CallbackRef){
-	XGpio *GpioPtr = (XGpio *)CallbackRef;
-	unsigned int encoder = XGpio_DiscreteRead(&EncoderGpio, 1);//if clockwise, 1023, else 2013, push=73
-	// 0 is clockwise, 1 is counterclockwise
-	ct = 0;
-	switch (encoder) {
-	    case 0:
-	    	finalState = 0;
-	        break;
-	    case 1:
-	    	if (dir == -1) dir = 0;
-	    	finalState = 1;
-	        break;
-	    case 2:
-	    	if (dir == -1) dir = 1;
-	    	finalState = 2;
-	        break;
-	    case 7:
-	    	btnpress = 1;
-	    	break;
-	    default: //case 3
-	    	if (dir == 0 && finalState == 2) final = 1;
-	    	if (dir == 1 && finalState == 1) final = 0;
-	    	dir = -1;
-	        break;
-	    }
-		XGpio_InterruptClear(GpioPtr, 1);
-}
 /*..........................................................................*/
 void BSP_init(void) {
 	/* Setup LED's, etc */
@@ -160,15 +119,8 @@ void QF_onStartup(void) {                 /* entered with interrupts locked */
 	XGpio_InterruptGlobalEnable(&EncoderGpio);
 	XGpio_InterruptEnable(&BtnGPIO, 1);
 	XGpio_InterruptGlobalEnable(&BtnGPIO);
-	// Twist Knob
-	// General
-	// Initialize Exceptions
-	// Press Knob
-	// Register Exception
-	// Twist Knob
-	// Register Exception
-	// General
-	// Enable Exception
+	
+	// set up Buffer array for the background
 	int x, y = 0;
 	for(int i = 0; i < 240; i++) {
 		x = i % 40;
@@ -184,6 +136,8 @@ void QF_onStartup(void) {                 /* entered with interrupts locked */
 			}
 		}
 	}
+
+	// initialize LCD with buffer array
 	initLCD();
 	clrScr();
 	for(int j=0; j<320; j++) {
@@ -199,6 +153,8 @@ void QF_onStartup(void) {                 /* entered with interrupts locked */
 	fillRect(40, 100, pastX, 120);
 	setFont(SmallFont);
 	ct = 0;
+
+	// grand loop from lab 2b
 	while(1){
 		if(ct==1000){
 			for(int j=100; j<151; j++) {
@@ -343,4 +299,61 @@ void Q_onAssert(char const Q_ROM * const Q_ROM_VAR file, int line) {
     printDebugLog();
     for (;;) {
     }
+}
+
+/* Interrupt handlers for buttons, encoder, and timer*/
+/*..........................................................................*/
+void timer_handler(){
+	Xuint32 ControlStatusReg;
+	ControlStatusReg = XTimerCtr_ReadReg(tmrctr.BaseAddress,0,XTC_TCSR_OFFSET);
+	ct++;
+	XTmrCtr_WriteReg(tmrctr.BaseAddress, 0 , XTC_TCSR_OFFSET, ControlStatusReg | XTC_CSR_INT_OCCURED_MASK);
+}
+
+void button_handler(void *CallbackRef){
+	XGpio *GpioPtr = (XGpio *)CallbackRef;
+	unsigned int btn = XGpio_DiscreteRead(&BtnGPIO, 1);//1 up 2 left 4 right 8 down
+	ct = 0;
+	if(btn==1){
+		mode = 1;
+	}
+	else if(btn==2){
+		mode = 2;
+	}
+	else if(btn==4){
+		mode = 4;
+	}
+	else if(btn==8){
+		mode = 8;
+	}
+	XGpio_InterruptClear(GpioPtr, 1);
+}
+
+void encoder_handler(void *CallbackRef){
+	XGpio *GpioPtr = (XGpio *)CallbackRef;
+	unsigned int encoder = XGpio_DiscreteRead(&EncoderGpio, 1);//if clockwise, 1023, else 2013, push=73
+	// 0 is clockwise, 1 is counterclockwise
+	ct = 0;
+	switch (encoder) {
+	    case 0:
+	    	finalState = 0;
+	        break;
+	    case 1:
+	    	if (dir == -1) dir = 0;
+	    	finalState = 1;
+	        break;
+	    case 2:
+	    	if (dir == -1) dir = 1;
+	    	finalState = 2;
+	        break;
+	    case 7:
+	    	btnpress = 1;
+	    	break;
+	    default: //case 3
+	    	if (dir == 0 && finalState == 2) final = 1;
+	    	if (dir == 1 && finalState == 1) final = 0;
+	    	dir = -1;
+	        break;
+	    }
+		XGpio_InterruptClear(GpioPtr, 1);
 }
