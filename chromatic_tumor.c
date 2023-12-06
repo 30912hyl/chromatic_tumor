@@ -49,12 +49,12 @@ QState ChromaticTumor_on(ChromaticTumor *me) {
 		case Q_ENTRY_SIG: {
 			xil_printf("\n\rOn");
 			}
-			
+
 		case Q_INIT_SIG: {
 			return Q_TRAN(&ChromaticTumor_stateA);
 			}
 	}
-	
+
 	return Q_SUPER(&QHsm_top);
 }
 
@@ -65,22 +65,22 @@ QState ChromaticTumor_on(ChromaticTumor *me) {
 QState ChromaticTumor_stateA(ChromaticTumor *me) {
 	switch (Q_SIG(me)) {
 		case Q_ENTRY_SIG: {
-			xil_printf("Startup State A\n");
+			xil_printf("Startup State A");
 			return Q_HANDLED();
 		}
-		
+
 		case ENCODER_UP: {
-			xil_printf("Encoder Up from State A\n");
+			xil_printf("Encoder Up from State A");
 			return Q_HANDLED();
 		}
 
 		case ENCODER_DOWN: {
-			xil_printf("Encoder Down from State A\n");
+			xil_printf("Encoder Down from State A");
 			return Q_HANDLED();
 		}
 
 		case ENCODER_CLICK:  {
-			xil_printf("Changing State\n");
+			xil_printf("Changing State");
 			return Q_TRAN(&ChromaticTumor_stateB);
 		}
 
@@ -93,22 +93,35 @@ QState ChromaticTumor_stateA(ChromaticTumor *me) {
 QState ChromaticTumor_stateB(ChromaticTumor *me) {
 	switch (Q_SIG(me)) {
 		case Q_ENTRY_SIG: {
-			xil_printf("Startup State B\n");
-			return Q_HANDLED();
-		}
-		
-		case ENCODER_UP: {
-			xil_printf("Encoder Up from State B\n");
+			xil_printf("Startup State B");
 			return Q_HANDLED();
 		}
 
-		case ENCODER_DOWN: {
-			xil_printf("Encoder Down from State B\n");
+		case BUTTON_UP: {
+			xil_printf("MODE 1\r");
 			return Q_HANDLED();
 		}
 
+		case BUTTON_DOWN: {
+			xil_printf("MODE 2\r");
+			return Q_HANDLED();
+		}
+		case BUTTON_LEFT: {
+			xil_printf("MODE 3\r");
+			return Q_HANDLED();
+		}
+
+		case BUTTON_RIGHT: {
+			xil_printf("MODE 4\r");
+			return Q_HANDLED();
+		}
+
+		case BUTTON_MIDDLE: {
+			xil_printf("MODE 5\r");
+			return Q_HANDLED();
+		}
 		case ENCODER_CLICK:  {
-			xil_printf("Changing State\n");
+			xil_printf("Changing State");
 			return Q_TRAN(&ChromaticTumor_stateA);
 		}
 
@@ -117,4 +130,3 @@ QState ChromaticTumor_stateB(ChromaticTumor *me) {
 	return Q_SUPER(&ChromaticTumor_on);
 
 }
-

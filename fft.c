@@ -2,11 +2,13 @@
 #include "complex.h"
 #include <xil_types.h>
 
-static float new_[4096];
-static float new_im[4096];
+#define SAMPLES 512
+#define M 9
+static float new_[SAMPLES];
+static float new_im[SAMPLES];
 
-extern float cosLUT[13][2048];
-extern float sinLUT[13][2048];
+extern float cosLUT[M+1][SAMPLES/2];
+extern float sinLUT[M+1][SAMPLES/2];
 
 extern inline unsigned int reverseBits(unsigned int bigN)
 {
