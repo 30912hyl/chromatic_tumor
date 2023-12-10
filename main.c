@@ -7,7 +7,6 @@
 #include "chromatic_tumor.h"                               /* application interface */
 #include "xil_cache.h"		                /* Cache Drivers */
 
-
 static QEvent l_chromatictumorQueue[30];
 
 QActiveCB const Q_ROM Q_ROM_VAR QF_active[] = {
@@ -83,8 +82,6 @@ void printDebugLog() {
 #define M 12 //2^m=samples
 #define CLOCK 100000000.0 //clock speed
 
-#define SAMPLES2 512
-#define M2 12
 
 extern uintptr_t FFT_CODE_START;
 extern uintptr_t FFT_CODE_END;
@@ -191,14 +188,17 @@ void read_fsl_values(float* q, int n) {
       exponent -= (26 << 23);                 // subtract n from exponent
       yi = yi & ~0x7f800000 | exponent;      // insert modified exponent back into bits 30..23
       //average[ct] = *(float *)&yi;
-      //ct++;
-      //if(ct==8){
+      ct++;
+      //if(ct==4){
     	  //ave = (average[0]+average[1]+average[2]+average[3]+average[4]+average[5]+average[6]+average[7])/8;
           //q[i] = ave;
     	  //printf("average is %f \r\n", average[0]);
     //	  ct = 0;
       //}
-      q[i] = *(float *)&yi;
+    	  q[i] = *(float *)&yi;
+    	  //q[i] = 1.5 * cosf(i *(2.0*PI*80/(2*CLOCK/n))) + 1.5;
+    	//  ct = 0;
+      //}
       //printf("ct %d is %f\r\n",ct,q[i]);
       //q[i] = 3.3*x/67108864.0; // 3.3V and 2^26 bit precision.
    }
@@ -267,22 +267,22 @@ int main() {
       ave = (average[0]+average[1]+average[2]+average[3]+average[4]+average[5]+average[6]+average[7])/8;
       if(aveIndex==7) aveIndex = 0;*/
 
-/*
-         findNote(frequency, 440);
+
+         //findNote(frequency, 440);
 
 
       //fftbool = 0;
          //get time to run program
-         ticks=XTmrCtr_GetValue(&timer, 0);
-        XTmrCtr_Stop(&timer, 0);
-         tot_time=ticks/CLOCK;
-         xil_printf("frequency: %d Hz\r\n", (int)(frequency));
-        xil_printf("program time: %dms \r\n",(int)(1000*tot_time));
+         //ticks=XTmrCtr_GetValue(&timer, 0);
+        //XTmrCtr_Stop(&timer, 0);
+         //tot_time=ticks/CLOCK;
+         //xil_printf("frequency: %d Hz\r\n", (int)(frequency));
+        //xil_printf("program time: %dms \r\n",(int)(1000*tot_time));
 
-      total_count = timerCount[0]+timerCount[1]+timerCount[2]+timerCount[3]+timerCount[4]+timerCount[5];
+      //total_count = timerCount[0]+timerCount[1]+timerCount[2]+timerCount[3]+timerCount[4]+timerCount[5];
       //if(total_count>10000) break;
       //xil_printf("total_count is %d \r\n", total_count);
-   }
+   /*}
    	 printf("fraction of time in fft ordering: %f ", timerCount[0]/(total_count+0.0));
 	 printf("fraction of time in fft math: %f ", timerCount[1]/(total_count+0.0));
 	 printf("fraction of time in fft reorder: %f ", timerCount[2]/(total_count+0.0));

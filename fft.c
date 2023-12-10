@@ -2,8 +2,8 @@
 #include "complex.h"
 #include <xil_types.h>
 
-#define SAMPLES 512
-#define M 9
+#define SAMPLES 4096
+#define M 12
 static float new_[SAMPLES];
 static float new_im[SAMPLES];
 
@@ -60,7 +60,7 @@ float fft(float* q, float* w, int n, int m, float sample_f) { //n=2^m samples
 	for(i=0; i<(m-1); i++){
 		d=0;
 		for (j=0; j<b; j++){
-			for (c=0; c<a; c++){	
+			for (c=0; c<a; c++){
 				e=c+d;
 				c=c<<1;
 				new_[e]=q[(c)+d];
@@ -70,7 +70,7 @@ float fft(float* q, float* w, int n, int m, float sample_f) { //n=2^m samples
 				c=c>>1;
 			}
 			d+=(n >> i);
-		}		
+		}
 		for (r=0; r<n;r++){
 			q[r]=new_[r];
 			w[r]=new_im[r];
@@ -83,7 +83,7 @@ float fft(float* q, float* w, int n, int m, float sample_f) { //n=2^m samples
 
 	b=1;
 	k=0;
-	for (j=0; j<m; j++){	
+	for (j=0; j<m; j++){
 	//MATH
 		for(i=0; i<n; i+=2){
 			if (i!=0 && i%(n/b)==0)
@@ -121,10 +121,10 @@ float fft(float* q, float* w, int n, int m, float sample_f) { //n=2^m samples
 			q[i]=new_[i];
 			w[i]=new_im[i];
 		}
-	//END REORDER	
+	//END REORDER
 		b=b<<1;
 		//xil_printf("k is %d",k);
-		k=0;		
+		k=0;
 	}
 
 	//find magnitudes
@@ -137,7 +137,7 @@ float fft(float* q, float* w, int n, int m, float sample_f) { //n=2^m samples
 			place=i;
 		}
 	}
-	
+
 	//float s=sample_f/n; //spacing of bins
 
 	float s = sample_f;
@@ -146,7 +146,7 @@ float fft(float* q, float* w, int n, int m, float sample_f) { //n=2^m samples
 	exponent -= (9 << 23);                 // subtract n from exponent
 	yi = yi & ~0x7f800000 | exponent;      // insert modified exponent back into bits 30..23
 	s = *(float *)&yi;
-	
+
 	frequency = s*place;
 
 	//curve fitting for more accuarcy
@@ -155,7 +155,7 @@ float fft(float* q, float* w, int n, int m, float sample_f) { //n=2^m samples
 	float y1=new_[place-1],y2=new_[place],y3=new_[place+1];
 	float x0=s+(2*s*(y2-y1))/(2*y2-y1-y3);
 	x0=x0/s-1;
-	
+
 	if(x0 <0 || x0 > 2) { //error
 		return 0;
 	}
@@ -165,6 +165,6 @@ float fft(float* q, float* w, int n, int m, float sample_f) { //n=2^m samples
 	else {
 		frequency=frequency+(x0-1)*s;
 	}
-	
+
 	return frequency;
 }

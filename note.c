@@ -4,13 +4,15 @@
 
 //array to store note names for findNote
 static char notes[12][3]={"C","C#","D","D#","E","F","F#","G","G#","A","A#","B"};
-
+int oct=4;
+int note=0;
 //finds and prints note of frequency and deviation from note
 void findNote(float f, int a) {
+	oct = 4;
+	note = 0;
 	float c=a*pow(2,(-3.0/4));
 	float r;
-	int oct=4;
-	int note=0;
+
 	//determine which octave frequency is in
 	if(f >= c) {
 		while(f > c*2) {

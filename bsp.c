@@ -1,9 +1,3 @@
-/*****************************************************************************
-* bsp.c for Lab2A of ECE 153a at UCSB
-* Date of the Last Update:  October 27,2019
-*****************************************************************************/
-
-/**/
 #include "qpn_port.h"
 #include "bsp.h"
 #include "chromatic_tumor.h"
@@ -14,7 +8,8 @@
 #include "xspi.h"
 #include "xspi_l.h"
 #include "lcd.h"
-
+#include "stream_grabber.h"
+#include "fft.h"
 
 /*****************************/
 
@@ -30,9 +25,11 @@ static XTmrCtr tmrctr;
 static XGpio BtnGPIO;
 static XGpio dc;
 static XSpi spi;
+
+/*
 static int BufferHigh[240][320];
 static int BufferLow[240][320];
-
+*/
 /******** For debouncing rotary encoder*/
 volatile int dir = -1;
 volatile int final = -1;
@@ -43,6 +40,15 @@ volatile int mode = -1;
 volatile int ct = 0;
 volatile int sleep = 0;
 
+extern volatile int modeChange;
+
+#define SAMPLES 4096 // AXI4 Streaming Data FIFO has size 512
+#define M 12 //2^m=samples
+#define CLOCK 100000000.0 //clock speed
+
+int int_buffer[SAMPLES];
+float cosLUT[M+1][SAMPLES/2]; // [k][j]
+float sinLUT[M+1][SAMPLES/2]; // [k][j]
 XSpi_Config *spiConfig;	/* Pointer to Configuration data */
 
 
@@ -50,18 +56,23 @@ u32 controlReg;
 
 /* Interrupt handlers for buttons, encoder, and timer*/
 /*..........................................................................*/
+
 void timer_handler(){
 	Xuint32 ControlStatusReg;
 	ControlStatusReg = XTimerCtr_ReadReg(tmrctr.BaseAddress,0,XTC_TCSR_OFFSET);
+	//xil_printf("timer handler");
 	ct++;
 	XTmrCtr_WriteReg(tmrctr.BaseAddress, 0 , XTC_TCSR_OFFSET, ControlStatusReg | XTC_CSR_INT_OCCURED_MASK);
 }
 
+
 void button_handler(void *CallbackRef){
 	XGpio *GpioPtr = (XGpio *)CallbackRef;
 	unsigned int btn = XGpio_DiscreteRead(&BtnGPIO, 1);//1 up 2 left 4 right 8 down
+	//xil_printf("b ");
 	ct = 0;
 	if(btn==1){
+		modeChange = 1;
 		QActive_postISR((QActive *)&AO_ChromaticTumor, BUTTON_UP);
 	}
 	else if(btn==2){
@@ -71,6 +82,7 @@ void button_handler(void *CallbackRef){
 		QActive_postISR((QActive *)&AO_ChromaticTumor, BUTTON_RIGHT);
 	}
 	else if(btn==8){
+		//modeChange = 1;
 		QActive_postISR((QActive *)&AO_ChromaticTumor, BUTTON_DOWN);
 	}
 	else if(btn==16){
@@ -83,7 +95,10 @@ void encoder_handler(void *CallbackRef){
 	XGpio *GpioPtr = (XGpio *)CallbackRef;
 	unsigned int encoder = XGpio_DiscreteRead(&EncoderGpio, 1);//if clockwise, 1023, else 2013, push=73
 	// 0 is clockwise, 1 is counterclockwise
+	//xil_printf("e ");
+	//modeChange = 1;
 	ct = 0;
+	//xil_printf("enters encoder");
 	switch (encoder) {
 	    case 0:
 	    	finalState = 0;
@@ -167,6 +182,72 @@ void rotarydown()
 		itoa(a4tune,buffer,10);
 	}*/
 }
+
+void init_LUT() {
+	// so b = 1, 2, 4, 6, ..., 512
+	// which means j = 0, 1, 2, ..., 9
+	// k = max 255.
+	int k;
+	int j;
+	float temp;
+	uint32_t yi;
+	uint32_t exponent;
+	for(j = 0; j < M+1; j++) {
+		for (k = 0; k < (SAMPLES >> 1); k++) {
+			temp = -1 * PI * k;
+			//xil_printf("k is %d, b is %f\r\n", k, pow(2.0,j));
+			yi = *(uint32_t *)&temp;        // get float value as bits
+			exponent = yi & 0x7f800000;   // extract exponent bits 30..23
+			exponent -= (j << 23);                 // subtract n from exponent
+			yi = yi & ~0x7f800000 | exponent;      // insert modified exponent back into bits 30..23
+			//xil_printf("here2");
+
+			temp = temp/(pow(2,j));
+			//temp = *(float *)&yi;
+			cosLUT[j][k] = cos(temp);
+			sinLUT[j][k] = sin(temp);
+			if(j==1 && k == 0) cosLUT[j][k] = 1.0;
+			//xil_printf(cosLUT[j][k]);
+
+
+		}
+	}
+}
+void read_fsl_values(float* q, int n) {
+   int i;
+   unsigned int x;
+   int ct = 0;
+   stream_grabber_wait_enough_samples(1);
+   float temp;
+   float ave;
+   uint32_t yi;
+   uint32_t exponent;
+   for(i = 0; i < n; i++) {
+      int_buffer[i] = stream_grabber_read_sample(i);
+      // xil_printf("%d\n",int_buffer[i]);
+      x = int_buffer[i];
+      temp = 3.3*x;
+      yi = *(uint32_t *)&temp;        // get float value as bits
+      exponent = yi & 0x7f800000;   // extract exponent bits 30..23
+      exponent -= (26 << 23);                 // subtract n from exponent
+      yi = yi & ~0x7f800000 | exponent;      // insert modified exponent back into bits 30..23
+      //average[ct] = *(float *)&yi;
+      ct++;
+      //if(ct==4){
+    	  //ave = (average[0]+average[1]+average[2]+average[3]+average[4]+average[5]+average[6]+average[7])/8;
+          //q[i] = ave;
+    	  //printf("average is %f \r\n", average[0]);
+    //	  ct = 0;
+      //}
+    	  q[i] = *(float *)&yi;
+    	  //q[i] = 1.5 * cosf(i *(2.0*PI*80/(2*CLOCK/n))) + 1.5;
+    	//  ct = 0;
+      //}
+      //printf("ct %d is %f\r\n",ct,q[i]);
+      //q[i] = 3.3*x/67108864.0; // 3.3V and 2^26 bit precision.
+   }
+   stream_grabber_start();
+}
 /*..........................................................................*/
 void BSP_init(void) {
 	/* Setup LED's, etc */
@@ -219,7 +300,7 @@ void QF_onStartup(void) {                 /* entered with interrupts locked */
 	XGpio_InterruptGlobalEnable(&EncoderGpio);
 	XGpio_InterruptEnable(&BtnGPIO, 1);
 	XGpio_InterruptGlobalEnable(&BtnGPIO);
-
+/*
 	// set up Buffer array for the background
 	int x, y = 0;
 	for(int i = 0; i < 240; i++) {
@@ -248,9 +329,9 @@ void QF_onStartup(void) {                 /* entered with interrupts locked */
 			LCD_Write_DATA(BufferLow[i][j]);
 			clrXY();
 		}
-	}
-	setFont(SmallFont);
-	ct = 0;
+	}*/
+	//setFont(SmallFont);
+	//ct = 0;
 	/*
 	while(1){
 		if(ct==1000){
@@ -365,6 +446,5 @@ void Q_onAssert(char const Q_ROM * const Q_ROM_VAR file, int line) {
     for (;;) {
     }
 }
-
 
 
