@@ -2,11 +2,13 @@
 #include "complex.h"
 #include <xil_types.h>
 
-static float new_[4096];
-static float new_im[4096];
+#define SAMPLES 4096
+#define M 12
+float new_[SAMPLES];
+static float new_im[SAMPLES];
 
-extern float cosLUT[13][2048];
-extern float sinLUT[13][2048];
+extern float cosLUT[M+1][SAMPLES/2];
+extern float sinLUT[M+1][SAMPLES/2];
 
 extern inline unsigned int reverseBits(unsigned int bigN)
 {
@@ -54,11 +56,10 @@ float fft(float* q, float* w, int n, int m, float sample_f) { //n=2^m samples
 
 	}*/
 	// ORdering algorithm
-
 	for(i=0; i<(m-1); i++){
 		d=0;
 		for (j=0; j<b; j++){
-			for (c=0; c<a; c++){	
+			for (c=0; c<a; c++){
 				e=c+d;
 				c=c<<1;
 				new_[e]=q[(c)+d];
@@ -68,7 +69,7 @@ float fft(float* q, float* w, int n, int m, float sample_f) { //n=2^m samples
 				c=c>>1;
 			}
 			d+=(n >> i);
-		}		
+		}
 		for (r=0; r<n;r++){
 			q[r]=new_[r];
 			w[r]=new_im[r];
@@ -78,12 +79,12 @@ float fft(float* q, float* w, int n, int m, float sample_f) { //n=2^m samples
 	}
 
 	//end ordering algorithm
-
 	b=1;
 	k=0;
-	for (j=0; j<m; j++){	
+	for (j=0; j<m; j++){
 	//MATH
 		for(i=0; i<n; i+=2){
+			//xil_printf("two\r\n");
 			if (i!=0 && i%(n/b)==0)
 				k++;
 			//cosine(-PI*k/b)
@@ -94,12 +95,19 @@ float fft(float* q, float* w, int n, int m, float sample_f) { //n=2^m samples
 			else{
 				printf("WRONG %f, should be: %f, %d, %d\r\n", cosLUT[j][k], cosine(-PI*k/b), k, b);
 			}*/
+			//xil_printf("three\r\n");
 			real=mult_real(q[i+1], w[i+1], cosLUT[j][k], sinLUT[j][k]);
+			//xil_printf("four\r\n");
 			imagine=mult_im(q[i+1], w[i+1], cosLUT[j][k], sinLUT[j][k]);
+			//xil_printf("five\r\n");
 			new_[i]=q[i]+real;
+			//xil_printf("six\r\n");
 			new_im[i]=w[i]+imagine;
+			//xil_printf("seven\r\n");
 			new_[i+1]=q[i]-real;
+			//xil_printf("eighgt\r\n");
 			new_im[i+1]=w[i]-imagine;
+			//xil_printf("nine\r\n");
 
 		}
 		for (i=0; i<n; i++){
@@ -107,23 +115,25 @@ float fft(float* q, float* w, int n, int m, float sample_f) { //n=2^m samples
 			w[i]=new_im[i];
 		}
 	//END MATH
-		q[0]=q[0];
 	//REORDER
 		for (i=0; i<n>>1; i++){
+
 			new_[i]=q[i<<1];
 			new_[i+(n>>1)]=q[(i<<1)+1];
 			new_im[i]=w[i<<1];
 			new_im[i+(n>>1)]=w[(i<<1)+1];
 		}
 		for (i=0; i<n; i++){
+
 			q[i]=new_[i];
 			w[i]=new_im[i];
 		}
-	//END REORDER	
+	//END REORDER
 		b=b<<1;
 		//xil_printf("k is %d",k);
-		k=0;		
+		k=0;
 	}
+
 
 	//find magnitudes
 	max=0;
@@ -135,16 +145,15 @@ float fft(float* q, float* w, int n, int m, float sample_f) { //n=2^m samples
 			place=i;
 		}
 	}
-	
-	//float s=sample_f/n; //spacing of bins
 
+	//float s=sample_f/n; //spacing of bins
 	float s = sample_f;
 	uint32_t yi = *(uint32_t *)&s;        // get float value as bits
 	uint32_t exponent = yi & 0x7f800000;   // extract exponent bits 30..23
 	exponent -= (9 << 23);                 // subtract n from exponent
 	yi = yi & ~0x7f800000 | exponent;      // insert modified exponent back into bits 30..23
 	s = *(float *)&yi;
-	
+
 	frequency = s*place;
 
 	//curve fitting for more accuarcy
@@ -153,7 +162,7 @@ float fft(float* q, float* w, int n, int m, float sample_f) { //n=2^m samples
 	float y1=new_[place-1],y2=new_[place],y3=new_[place+1];
 	float x0=s+(2*s*(y2-y1))/(2*y2-y1-y3);
 	x0=x0/s-1;
-	
+
 	if(x0 <0 || x0 > 2) { //error
 		return 0;
 	}
@@ -163,6 +172,6 @@ float fft(float* q, float* w, int n, int m, float sample_f) { //n=2^m samples
 	else {
 		frequency=frequency+(x0-1)*s;
 	}
-	
+
 	return frequency;
 }

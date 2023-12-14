@@ -20,6 +20,8 @@ Returns
 #define NOTE_H 
 
 #define root2 1.0594631 //twelfth root of 2
+#define halfway 1.02930224 //24th root of 2
+#define centvalue 1.00057779 //1200th root of 2
 
 void findNote(float f, int a);
 

@@ -4,13 +4,18 @@
 
 //array to store note names for findNote
 static char notes[12][3]={"C","C#","D","D#","E","F","F#","G","G#","A","A#","B"};
-
+int oct=4;
+int note=0;
+int cents=0;
 //finds and prints note of frequency and deviation from note
 void findNote(float f, int a) {
-	float c=a*pow(2,(-3.0/4));
+	oct = 4;
+	note = 0;
+	float c=a*pow(2,(oct-4+(-9.0+note)/12));
+	float highfreq;
+	float lowfreq;
 	float r;
-	int oct=4;
-	int note=0;
+
 	//determine which octave frequency is in
 	if(f >= c) {
 		while(f > c*2) {
@@ -35,25 +40,32 @@ void findNote(float f, int a) {
 		note++;
 	}
 
-
+    //f = 1042, C5
 	//determine which note frequency is closest to
 	if((f-c) <= (r-f)) { //closer to left note
-		xil_printf("N:");
-		xil_printf(notes[note]);
-		xil_printf("%d", oct);
-		//xil_printf("\n\n D:+");
-		//xil_printf((int)(f-c+.5));
-		//xil_printf("Hz");
+		if(note==12){
+			xil_printf("ERROR LEFT");
+			highfreq = a*pow(2,((oct+1)-4+(-9.0+0)/12));
+		}
+		else highfreq = a*pow(2,(oct-4+(-9.0+note+1)/12));
+
+		lowfreq = a*pow(2,(oct-4+(-9.0+note)/12));
+		cents = (int)((f-c)/((highfreq-lowfreq)/100));
+		if(cents>50) cents = 50;
 	}
 	else { //f closer to right note
 		note++;
-		if(note >=12) note=0;
-		xil_printf("N:");
-		xil_printf(notes[note]);
-		xil_printf("%d", oct);
-		//xil_printf(" D:-");
-		//xil_printf((int)(r-f+.5));
-		//xil_printf("Hz");
+		if(note >=12){
+			note=0;
+			oct++;
+		}
+		highfreq = a*pow(2,(oct-4+(-9.0+note)/12));
+		if(note==0){
+			lowfreq = a*pow(2,((oct-1)-4+(-9.0+11)/12));
+		}
+		else lowfreq = a*pow(2,(oct-4+(-9.0+note-1)/12));
+		cents = (int)((f-r)/((highfreq-lowfreq)/100));
+		if(cents<-50) cents = -50;
 	}
 
 }
